@@ -21,3 +21,4 @@ stuff
 *.DS_STORE
 ./source/CMakeFiles/*
 ./source/CMakeCache.txt
+./scratch/*

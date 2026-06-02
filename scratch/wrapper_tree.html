@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SCIGMA Python Wrapper Tree</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f7f8fa;
+      --panel: #ffffff;
+      --ink: #1f2933;
+      --muted: #52616f;
+      --line: #d8dee6;
+      --accent: #0f766e;
+      --accent-soft: #e0f2f1;
+      --code: #f1f5f9;
+      --warn: #9a3412;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+      color: var(--ink);
+      background: var(--bg);
+    }
+
+    header {
+      padding: 28px 32px 18px;
+      background: #12263a;
+      color: white;
+    }
+
+    header p {
+      max-width: 920px;
+      margin: 8px 0 0;
+      color: #d9e2ec;
+    }
+
+    h1, h2, h3 { line-height: 1.2; }
+    h1 { margin: 0; font-size: 30px; letter-spacing: 0; }
+    h2 { margin: 0 0 12px; font-size: 22px; }
+    h3 { margin: 18px 0 8px; font-size: 17px; }
+
+    main {
+      display: grid;
+      grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+      gap: 22px;
+      padding: 22px 32px 40px;
+      max-width: 1320px;
+      margin: 0 auto;
+    }
+
+    nav {
+      position: sticky;
+      top: 16px;
+      align-self: start;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    nav a {
+      display: block;
+      padding: 5px 0;
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 14px;
+    }
+
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 22px;
+      margin-bottom: 18px;
+    }
+
+    code {
+      padding: 1px 5px;
+      border-radius: 5px;
+      background: var(--code);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.92em;
+    }
+
+    pre {
+      overflow: auto;
+      padding: 14px;
+      border-radius: 8px;
+      background: #0b1220;
+      color: #dbeafe;
+      font-size: 13px;
+    }
+
+    ul.tree, .tree ul {
+      list-style: none;
+      margin: 0;
+      padding-left: 20px;
+      border-left: 1px solid var(--line);
+    }
+
+    .tree > li { margin-bottom: 14px; }
+    .tree li { margin: 6px 0; }
+
+    .node {
+      display: inline-block;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 8px 10px;
+      background: #fff;
+    }
+
+    .node strong { color: #102a43; }
+    .note { color: var(--muted); }
+    .tag {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 1px 6px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 12px;
+      vertical-align: 1px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      background: #fff;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th, td {
+      vertical-align: top;
+      text-align: left;
+      border-bottom: 1px solid var(--line);
+      padding: 9px 8px;
+    }
+
+    th {
+      background: #f8fafc;
+      color: #334e68;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(120px, 1fr));
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .step {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: #fff;
+      min-height: 96px;
+    }
+
+    .step b {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--accent);
+    }
+
+    .warning {
+      border-left: 4px solid var(--warn);
+      padding: 10px 12px;
+      background: #fff7ed;
+    }
+
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; padding: 16px; }
+      nav { position: static; }
+      .grid, .flow { grid-template-columns: 1fr; }
+      header { padding: 22px 16px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>SCIGMA Python Wrapper Tree</h1>
+    <p>
+      Working notes for understanding how the Python package in <code>scigma/</code>
+      wraps the compiled <code>libscigma</code> library. This file lives under
+      <code>scratch/</code> so it can be deleted before publishing.
+    </p>
+  </header>
+
+  <main>
+    <nav aria-label="Contents">
+      <strong>Contents</strong>
+      <a href="#mental-model">Mental Model</a>
+      <a href="#repo-tree">Wrapper Tree</a>
+      <a href="#startup">Startup Path</a>
+      <a href="#ctypes">ctypes Bridge</a>
+      <a href="#plugins">Command Plugins</a>
+      <a href="#flows">Feature Flows</a>
+      <a href="#extension-points">Extension Points</a>
+      <a href="#risks">Risks And Gotchas</a>
+    </nav>
+
+    <div>
+      <section id="mental-model">
+        <h2>Mental Model</h2>
+        <p>
+          SCIGMA is packaged as Python, but most heavy work is in one compiled
+          shared library: <code>scigma/libscigma.so</code>,
+          <code>scigma/libscigma.dylib</code>, or <code>scigma/libscigma.dll</code>.
+          Python modules do three jobs:
+        </p>
+        <div class="grid">
+          <div class="card">
+            <h3>1. Load the compiled library</h3>
+            <p><code>scigma/library.py</code> resolves the platform-specific library and exposes <code>lib</code>.</p>
+          </div>
+          <div class="card">
+            <h3>2. Wrap C++ objects</h3>
+            <p>Thin Python classes store integer handles named <code>objectID</code> and pass them into <code>lib.scigma_*</code> functions.</p>
+          </div>
+          <div class="card">
+            <h3>3. Provide a user command layer</h3>
+            <p>Top-level modules register command dictionaries through <code>plug(win)</code> and are dispatched by <code>Window.process_command()</code>.</p>
+          </div>
+          <div class="card">
+            <h3>4. Coordinate UI and tasks</h3>
+            <p><code>Window</code>, panels, graph objects, logs, and callbacks glue user input to numerical tasks.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="repo-tree">
+        <h2>Wrapper Tree</h2>
+        <ul class="tree">
+          <li>
+            <span class="node"><strong>README.md</strong> <span class="tag">user overview</span><br><span class="note">Explains SCIGMA as a Python package for interactive dynamical systems visualization and analysis.</span></span>
+          </li>
+          <li>
+            <span class="node"><strong>scigma/__init__.py</strong> <span class="tag">entrypoint</span><br><span class="note">Imports subsystems, creates the main window at import time, and installs global commands.</span></span>
+            <ul>
+              <li><span class="node"><strong>new()</strong><br><span class="note">Creates <code>window.Window</code>, registers global commands, creates the Global panel, and plugs feature modules.</span></span></li>
+              <li><span class="node"><strong>load(), reset(), bye()</strong><br><span class="note">Script loading, reset behavior, and teardown commands.</span></span></li>
+            </ul>
+          </li>
+          <li>
+            <span class="node"><strong>scigma/library.py</strong> <span class="tag">loader</span><br><span class="note">Loads <code>libscigma</code> with <code>ctypes.CDLL</code>; prompts for large fonts and writes <code>LARGE_FONTS_FLAG</code> in the library.</span></span>
+          </li>
+          <li>
+            <span class="node"><strong>scigma/window.py</strong> <span class="tag">runtime hub</span><br><span class="note">Owns one interactive window, command dispatch, plugin lifecycle, the console, option panels, the event loop callback, and async log processing.</span></span>
+            <ul>
+              <li><span class="node"><strong>Window.commands</strong><br><span class="note">Nested command dictionary searched by <code>common.dict_full_paths()</code>.</span></span></li>
+              <li><span class="node"><strong>Window.process_command()</strong><br><span class="note">Strips comments, tokenizes input, dispatches commands, falls back to equation parsing or option set/query.</span></span></li>
+              <li><span class="node"><strong>Window.process_messages()</strong><br><span class="note">Drains <code>common.Log</code>; routes success/fail messages to <code>graphs.success()</code> and <code>graphs.fail()</code>.</span></span></li>
+            </ul>
+          </li>
+          <li>
+            <span class="node"><strong>scigma/common/</strong> <span class="tag">shared wrappers</span></span>
+            <ul>
+              <li><span class="node"><strong>blob.py</strong><br><span class="note">Builds typed key/value parameter blobs for numerical task options.</span></span></li>
+              <li><span class="node"><strong>log.py</strong><br><span class="note">Wraps compiled log queue; Python polls messages from numerical tasks.</span></span></li>
+              <li><span class="node"><strong>util.py</strong><br><span class="note">Command/option dictionary helpers plus <code>Enum</code> and <code>Float</code> marker classes.</span></span></li>
+            </ul>
+          </li>
+          <li>
+            <span class="node"><strong>scigma/dat/</strong> <span class="tag">data containers</span></span>
+            <ul>
+              <li><span class="node"><strong>Wave, IWave, BWave</strong><br><span class="note">Thin wrappers around compiled numeric, integer, and byte vectors. They expose <code>push_back</code>, <code>pop_back</code>, <code>lock</code>, <code>unlock</code>, <code>size</code>, <code>data</code>, and indexing.</span></span></li>
+              <li><span class="node"><strong>Mesh</strong><br><span class="note">Wraps compiled mesh storage and returns waves for points, normals, triangle indices, iso indices, and endpoints.</span></span></li>
+            </ul>
+          </li>
+          <li>
+            <span class="node"><strong>scigma/gui/</strong> <span class="tag">OpenGL/UI wrappers</span></span>
+            <ul>
+              <li><span class="node"><strong>application.py</strong><br><span class="note">Global loop/idle callbacks, sleep/wake, and loop control.</span></span></li>
+              <li><span class="node"><strong>glwindow.py</strong><br><span class="note">Main OpenGL window wrapper; connects event sinks and manages ranges, transforms, drawing, and drawable registration.</span></span></li>
+              <li><span class="node"><strong>console.py, atwpanel.py</strong><br><span class="note">Console I/O and AntTweakBar option panels with Python callbacks.</span></span></li>
+              <li><span class="node"><strong>sheet.py, bundle.py, curve.py</strong><br><span class="note">Drawable graph objects backed by compiled GUI objects.</span></span></li>
+              <li><span class="node"><strong>navigator.py, mouse.py, picker.py, cosy.py</strong><br><span class="note">Navigation, mouse, picking, and coordinate-system helpers.</span></span></li>
+            </ul>
+          </li>
+          <li>
+            <span class="node"><strong>scigma/num/</strong> <span class="tag">numerics wrappers</span></span>
+            <ul>
+              <li><span class="node"><strong>equationsystem.py</strong><br><span class="note">Central wrapper for compiled equation systems. It can parse interactive definitions or wrap Python callbacks with <code>CFUNCTYPE</code>.</span></span></li>
+              <li><span class="node"><strong>gsortho.py</strong><br><span class="note">Pure Python Gram-Schmidt utilities used for vector/eigenvector work.</span></span></li>
+            </ul>
+          </li>
+          <li>
+            <span class="node"><strong>Top-level feature modules</strong> <span class="tag">plugins</span></span>
+            <ul>
+              <li><span class="node"><strong>equations.py</strong><br><span class="note">Equation entry, mode selection, value/equation panels, and parse callbacks.</span></span></li>
+              <li><span class="node"><strong>graphs.py</strong><br><span class="note">Graph registry, drawable creation, view expression mapping, task success/fail handling.</span></span></li>
+              <li><span class="node"><strong>iteration.py, guessing.py, manifolds.py, sweeping.py, continuation.py</strong><br><span class="note">High-level commands that assemble blobs/data, call numerical <code>lib.scigma_num_*</code> task functions, and register callbacks.</span></span></li>
+              <li><span class="node"><strong>view.py, style.py, picking.py, options.py, popups.py</strong><br><span class="note">User-facing controls for camera/view ranges, style/theme, mouse picking, options, and context menus.</span></span></li>
+            </ul>
+          </li>
+          <li>
+            <span class="node"><strong>source/**/*wrapper.cpp</strong> <span class="tag">C ABI</span><br><span class="note">The compiled library exports <code>extern "C"</code> functions named <code>scigma_common_*</code>, <code>scigma_dat_*</code>, <code>scigma_gui_*</code>, and <code>scigma_num_*</code>.</span></span>
+          </li>
+        </ul>
+      </section>
+
+      <section id="startup">
+        <h2>Startup Path</h2>
+        <div class="flow">
+          <div class="step"><b>1. import scigma</b><code>scigma/__init__.py</code> runs immediately.</div>
+          <div class="step"><b>2. load lib</b><code>library.py</code> calls <code>ctypes.CDLL()</code> and sets <code>LARGE_FONTS_FLAG</code>.</div>
+          <div class="step"><b>3. create Window</b><code>main = new(None)</code> constructs <code>Window</code>, <code>Log</code>, <code>GLWindow</code>, and <code>Console</code>.</div>
+          <div class="step"><b>4. plug modules</b><code>equations.plug()</code>, <code>graphs.plug()</code>, <code>iteration.plug()</code>, etc. install commands and panels.</div>
+          <div class="step"><b>5. event loop</b><code>gui.application</code> calls back into <code>Window.loop_callback()</code> to process queued commands and task logs.</div>
+        </div>
+      </section>
+
+      <section id="ctypes">
+        <h2>ctypes Bridge</h2>
+        <p>
+          The Python wrapper is not a CPython extension module. It uses plain
+          exported C symbols from a shared library. Each wrapper module imports
+          <code>lib</code>, declares selected <code>argtypes</code>/<code>restype</code>,
+          and calls into the compiled side.
+        </p>
+        <pre><code>from ctypes import *
+from .. import lib
+
+lib.scigma_num_equation_system_parse.argtypes = [c_int, c_char_p]
+lib.scigma_num_equation_system_parse.restype = c_char_p
+
+result = lib.scigma_num_equation_system_parse(self.objectID, create_string_buffer(line))</code></pre>
+        <table>
+          <thead>
+            <tr><th>Python wrapper area</th><th>Compiled wrapper file</th><th>Export prefix / examples</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>scigma/common/blob.py</code>, <code>log.py</code></td><td><code>source/common/*wrapper.cpp</code></td><td><code>scigma_common_create_blob</code>, <code>scigma_common_log_pop</code></td></tr>
+            <tr><td><code>scigma/dat/*.py</code></td><td><code>source/dat/datwrapper.cpp</code></td><td><code>scigma_dat_create_wave</code>, <code>scigma_dat_mesh_points_and_normals</code></td></tr>
+            <tr><td><code>scigma/gui/*.py</code></td><td><code>source/gui/*wrapper.cpp</code></td><td><code>scigma_gui_create_gl_window</code>, <code>scigma_gui_create_sheet</code>, <code>scigma_gui_application_loop</code></td></tr>
+            <tr><td><code>scigma/num/equationsystem.py</code></td><td><code>source/num/equationsystemwrapper.cpp</code></td><td><code>scigma_num_create_equation_system</code>, <code>scigma_num_equation_system_parse</code></td></tr>
+            <tr><td>Numerical task modules</td><td><code>source/num/*wrapper.cpp</code></td><td><code>scigma_num_plot</code>, <code>scigma_num_guess</code>, <code>scigma_num_auto</code>, <code>scigma_num_finish_task</code></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="plugins">
+        <h2>Command Plugins</h2>
+        <p>
+          Most user-facing modules follow a consistent shape:
+          a module-level <code>commands</code> dictionary maps abbreviations to Python
+          functions, <code>plug(win)</code> registers the dictionary with the current
+          <code>Window</code>, and <code>unplug(win)</code> removes module state.
+        </p>
+        <pre><code>def plug(win):
+    if not win.register_plugin('equations', lambda: unplug(win), commands):
+        return
+    # allocate panels, state objects, callbacks
+
+def unplug(win):
+    if not win.unregister_plugin('equations'):
+        return
+    # destroy panels and delete attributes</code></pre>
+        <table>
+          <thead>
+            <tr><th>Plugin</th><th>Main role</th><th>Typical state added to <code>Window</code></th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>equations</code></td><td>Equation parsing and mode-specific panels.</td><td><code>eqsys</code>, <code>invsys</code>, <code>equationPanel</code>, <code>valuePanel</code>, <code>source</code></td></tr>
+            <tr><td><code>graphs</code></td><td>Graph creation, drawables, graph registry, view mapping.</td><td>Graph dictionaries, graph commands, callbacks.</td></tr>
+            <tr><td><code>iteration</code></td><td>Plot trajectories/iterates using <code>scigma_num_plot</code>.</td><td>Task IDs attached to graph records.</td></tr>
+            <tr><td><code>guessing</code></td><td>Stationary-state guessing/eigen data using <code>scigma_num_guess</code>.</td><td>Guess graph/task records and mouse callbacks.</td></tr>
+            <tr><td><code>manifolds</code></td><td>Stable/unstable manifolds via map or ODE manifold tasks.</td><td>Manifold graph/task records.</td></tr>
+            <tr><td><code>sweeping</code></td><td>Parameter/initial-condition sweeps using <code>scigma_num_sweep</code>.</td><td>Sweep graph/task records.</td></tr>
+            <tr><td><code>continuation</code></td><td>AUTO continuation using <code>scigma_num_auto</code>.</td><td>Continuation folder/task/branch state.</td></tr>
+            <tr><td><code>view</code>, <code>style</code>, <code>picking</code>, <code>popups</code></td><td>Interactive UI behavior around graph display and user selection.</td><td>Option panels, callbacks, selection state.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="flows">
+        <h2>Feature Flows</h2>
+
+        <h3>Equation entered in the console</h3>
+        <div class="flow">
+          <div class="step"><b>Console</b>User enters <code>x' = f(x)</code>.</div>
+          <div class="step"><b>Window</b><code>process_command()</code> finds no command, so it tries <code>equations.parse()</code>.</div>
+          <div class="step"><b>EquationSystem</b><code>win.eqsys.parse()</code> calls <code>scigma_num_equation_system_parse</code>.</div>
+          <div class="step"><b>Panels</b><code>rebuild_panels()</code> regenerates equation/value UI from compiled definitions.</div>
+          <div class="step"><b>Dependents</b><code>win.on_parse()</code> lets picking/graphs update variable-dependent state.</div>
+        </div>
+
+        <h3>Plot or numerical task</h3>
+        <div class="flow">
+          <div class="step"><b>Command</b><code>plot</code>, <code>guess</code>, <code>manifold</code>, <code>sweep</code>, or <code>cont</code>.</div>
+          <div class="step"><b>Python setup</b>Collect options, create <code>Blob</code>, graph, wave, or callback data.</div>
+          <div class="step"><b>C task</b>Call <code>scigma_num_plot</code>, <code>scigma_num_guess</code>, <code>scigma_num_auto</code>, etc.</div>
+          <div class="step"><b>Log queue</b>Compiled code posts progress, success, or fail messages to <code>common.Log</code>.</div>
+          <div class="step"><b>Graph finalization</b><code>Window.process_messages()</code> routes task success/fail to <code>graphs.success()</code>/<code>graphs.fail()</code>.</div>
+        </div>
+
+        <h3>Graph display update</h3>
+        <div class="flow">
+          <div class="step"><b>Graph record</b><code>graphs.new()</code> creates graph metadata and GUI drawable.</div>
+          <div class="step"><b>View expressions</b><code>graphs.set_view()</code> maps expressions to variable indices.</div>
+          <div class="step"><b>ctypes call</b><code>Sheet.set_view()</code> or <code>Bundle.set_view()</code> calls <code>scigma_gui_*_set_view</code>.</div>
+          <div class="step"><b>GLWindow</b>Drawable is attached to the compiled OpenGL window.</div>
+          <div class="step"><b>Loop</b>Application loop redraws the window and handles interactions.</div>
+        </div>
+      </section>
+
+      <section id="extension-points">
+        <h2>Extension Points</h2>
+        <table>
+          <thead>
+            <tr><th>Change type</th><th>Likely files</th><th>What to copy</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Add a new user command backed by existing Python state.</td><td>Relevant top-level plugin, often <code>graphs.py</code>, <code>view.py</code>, or <code>style.py</code>.</td><td>Existing <code>commands[...] = function</code> and <code>plug/unplug</code> pattern.</td></tr>
+            <tr><td>Add a new compiled object wrapper.</td><td>New or existing <code>scigma/*/*.py</code> plus <code>source/**/*wrapper.cpp</code>.</td><td><code>objectID</code> lifecycle: create in <code>__init__</code>, destroy in <code>destroy()</code>, declare <code>argtypes</code>/<code>restype</code>.</td></tr>
+            <tr><td>Add a new numerical task.</td><td>Top-level command module plus <code>source/num/*wrapper.cpp</code>.</td><td><code>iteration.py</code>, <code>guessing.py</code>, or <code>sweeping.py</code> task flow.</td></tr>
+            <tr><td>Add options to a command/task.</td><td>Command module and maybe <code>common/blob.py</code>.</td><td>Build a Python dict, pass through <code>Blob.set_from_dict()</code>, read on compiled side.</td></tr>
+            <tr><td>Add GUI controls.</td><td><code>scigma/gui/atwpanel.py</code> users, usually plugin <code>plug()</code> functions.</td><td><code>equations.plug()</code> and <code>style.plug()</code> panel construction.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="risks">
+        <h2>Risks And Gotchas</h2>
+        <div class="warning">
+          Importing <code>scigma</code> has side effects: it prompts for font size,
+          loads the shared library, creates a graphics window, and registers callbacks.
+          Avoid importing it in tooling that only wants static metadata.
+        </div>
+        <ul>
+          <li><code>objectID</code> values are unmanaged integer handles. If a wrapper is destroyed twice or used after <code>destroy()</code>, Python cannot protect you.</li>
+          <li><code>CFUNCTYPE</code> callback objects must stay referenced on the Python object. Several classes store them as <code>self.c_callback</code>; follow that pattern.</li>
+          <li>Many string paths assume ASCII and use <code>create_string_buffer(bytes(...encode("ascii")))</code>.</li>
+          <li>Some ctypes signatures are declared only partially. When adding calls, set both <code>argtypes</code> and <code>restype</code> explicitly.</li>
+          <li><code>Window.process_command()</code> treats unknown commands as possible equations before trying option set/query behavior. New command names should avoid colliding with equation syntax or option names.</li>
+          <li>The CMake build links static subsystem libraries into one shared <code>scigma</code> target using whole-archive flags so the wrapper symbols are exported from the single library.</li>
+        </ul>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

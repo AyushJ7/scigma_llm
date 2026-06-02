@@ -7,6 +7,7 @@ from . import options
 from . import equations
 from . import picking
 from . import graphs
+from . import llm
 from .windowlist import windows
 
 class Window(object):
@@ -119,6 +120,20 @@ class Window(object):
         picking.on_parse(self)
         
     def process_command(self,line):
+        if line.strip().startswith('!!'):
+            try:
+                llm.handle(line.strip()[2:], self)
+            except Exception as e:
+                message = str(e.args[0]) if e.args else str(e)
+                try:
+                    message.encode("ascii")
+                except UnicodeEncodeError:
+                    message = message.encode("ascii", "replace").decode("ascii")
+                self.console.write_error("LLM error: "+message+"\n")
+                print("LLM error: "+message)
+            self.history.append(line)
+            return
+
         line=line.partition('#')[0]         # remove any comment
         if len(line) and line[-1]=='"':     # string command (write/writeln)
             clist=line.partition('"')
