@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import textwrap
 
 try:
     from urllib.request import Request, urlopen
@@ -19,6 +20,7 @@ DEFAULT_MODEL = "gemma4:31b-cloud"
 DEFAULT_REFERENCE_CHARS = 30000
 DEFAULT_MAX_COMMANDS = 30
 DEFAULT_MAX_COMMAND_CHARS = 500
+DEFAULT_ANSWER_WRAP_CHARS = 78
 
 DENIED_COMMANDS = set([
     "!!",
@@ -47,6 +49,7 @@ def handle(prompt, win):
         message = _ascii(response["message"])
         _write_note(win, "LLM clarification: " + message + "\n")
         print("LLM clarification: " + message)
+        _append_llm_history(win, "commands", prompt, "clarification: " + message)
         return []
 
     commands = validate_commands(response["commands"], win)
@@ -59,8 +62,29 @@ def handle(prompt, win):
         _write_data(win, "  " + command + "\n")
         print("  " + command)
 
+    _append_llm_history(win, "commands", prompt, "\n".join(commands))
     win.queue = commands + win.queue
     return commands
+
+
+def answer(prompt, win):
+    prompt = prompt.strip()
+    if not prompt:
+        raise LLMError("empty LLM question after '?'")
+
+    _write_note(win, "LLM: answering...\n")
+    response = request_answer(prompt, win)
+    response = _truncate_answer(_ascii(response).strip())
+    if not response:
+        raise LLMError("LLM returned an empty answer")
+    display_response = _wrap_console_text(response)
+
+    _write_note(win, "LLM answer:\n")
+    _write_data(win, display_response + "\n")
+    print("LLM answer:")
+    print(display_response)
+    _append_llm_history(win, "answer", prompt, response)
+    return response
 
 
 def request_commands(prompt, win):
@@ -89,6 +113,32 @@ def request_commands(prompt, win):
     except KeyError:
         raise LLMError("Ollama response did not contain message.content")
     return parse_response(content)
+
+
+def request_answer(prompt, win):
+    payload = {
+        "model": _model(),
+        "messages": [
+            {
+                "role": "system",
+                "content": _answer_system_prompt(),
+            },
+            {
+                "role": "user",
+                "content": _answer_user_prompt(prompt, win),
+            },
+        ],
+        "stream": False,
+        "options": {
+            "temperature": float(os.environ.get("SCIGMA_LLM_ANSWER_TEMPERATURE", "0.2")),
+        },
+    }
+
+    raw = _post_json(_endpoint(), payload)
+    try:
+        return raw["message"]["content"]
+    except KeyError:
+        raise LLMError("Ollama response did not contain message.content")
 
 
 def parse_response(content):
@@ -200,6 +250,16 @@ def build_session_context(win):
     else:
         lines.append("recent commands: none")
 
+    llm_history = _recent_llm_history(win)
+    if llm_history:
+        lines.append("recent LLM interactions:")
+        for item in llm_history:
+            lines.append("- trigger: " + item["trigger"])
+            lines.append("  user: " + item["prompt"])
+            lines.append("  assistant: " + item["response"])
+    else:
+        lines.append("recent LLM interactions: none")
+
     return "\n".join(lines)
 
 
@@ -219,6 +279,38 @@ def _context_history(win):
     if limit <= 0:
         return []
     return scoped[-limit:]
+
+
+def _append_llm_history(win, trigger, prompt, response):
+    try:
+        history = win.llm_history
+    except AttributeError:
+        history = []
+        win.llm_history = history
+
+    history.append({
+        "trigger": _ascii(trigger),
+        "prompt": _compact_context_text(prompt),
+        "response": _compact_context_text(response),
+    })
+
+    limit = int(os.environ.get("SCIGMA_LLM_INTERACTION_HISTORY", "12"))
+    if limit <= 0:
+        del history[:]
+    elif len(history) > limit:
+        del history[:-limit]
+
+
+def _recent_llm_history(win):
+    try:
+        history = list(win.llm_history)
+    except AttributeError:
+        return []
+
+    limit = int(os.environ.get("SCIGMA_LLM_INTERACTION_HISTORY", "12"))
+    if limit <= 0:
+        return []
+    return history[-limit:]
 
 
 def _eqsys_context(title, eqsys):
@@ -247,6 +339,16 @@ def _system_prompt():
     )
 
 
+def _answer_system_prompt():
+    return (
+        "You are a concise SCIGMA assistant. "
+        "Answer the user's question in natural language using the SCIGMA reference and current session context. "
+        "Keep the reply short: at most five concise sentences. "
+        "You may suggest useful parameter values, analysis steps, or command names, but do not claim to have run commands. "
+        "If the user asks you to change the session, explain that executable changes should use the !! trigger."
+    )
+
+
 def _user_prompt(prompt, win):
     return (
         "SCIGMA reference markdown:\n"
@@ -258,6 +360,21 @@ def _user_prompt(prompt, win):
         + build_session_context(win)
         + "\n```\n\n"
         "User request:\n"
+        + prompt
+    )
+
+
+def _answer_user_prompt(prompt, win):
+    return (
+        "SCIGMA reference markdown:\n"
+        "```markdown\n"
+        + _reference_markdown()
+        + "\n```\n\n"
+        "Current session context:\n"
+        "```text\n"
+        + build_session_context(win)
+        + "\n```\n\n"
+        "User question:\n"
         + prompt
     )
 
@@ -540,6 +657,16 @@ def _join_or_none(values):
     return ", ".join([_ascii(value) for value in values])
 
 
+def _compact_context_text(text):
+    text = _ascii(text).replace("\r", "\n")
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    text = " | ".join(lines)
+    limit = int(os.environ.get("SCIGMA_LLM_INTERACTION_CHARS", "1200"))
+    if len(text) <= limit:
+        return text
+    return text[:limit].rstrip() + " [truncated]"
+
+
 def _write_note(win, text):
     try:
         win.console.write_note(_ascii(text))
@@ -570,3 +697,27 @@ def _require_ascii_command(value):
     except UnicodeEncodeError:
         raise LLMError("LLM generated a non-ASCII command")
     return text
+
+
+def _truncate_answer(text):
+    limit = int(os.environ.get("SCIGMA_LLM_ANSWER_MAX_CHARS", "1200"))
+    if len(text) <= limit:
+        return text
+    return text[:limit].rstrip() + "\n[answer truncated]"
+
+
+def _wrap_console_text(text):
+    width = int(os.environ.get("SCIGMA_LLM_ANSWER_WRAP_CHARS", DEFAULT_ANSWER_WRAP_CHARS))
+    if width <= 0:
+        return text
+
+    wrapped = []
+    for line in text.splitlines():
+        if not line.strip():
+            wrapped.append("")
+            continue
+        wrapped.extend(textwrap.wrap(line,
+                                     width=width,
+                                     break_long_words=True,
+                                     break_on_hyphens=False))
+    return "\n".join(wrapped)

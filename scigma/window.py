@@ -134,6 +134,20 @@ class Window(object):
             self.history.append(line)
             return
 
+        if line.strip().startswith('?'):
+            try:
+                llm.answer(line.strip()[1:], self)
+            except Exception as e:
+                message = str(e.args[0]) if e.args else str(e)
+                try:
+                    message.encode("ascii")
+                except UnicodeEncodeError:
+                    message = message.encode("ascii", "replace").decode("ascii")
+                self.console.write_error("LLM error: "+message+"\n")
+                print("LLM error: "+message)
+            self.history.append(line)
+            return
+
         line=line.partition('#')[0]         # remove any comment
         if len(line) and line[-1]=='"':     # string command (write/writeln)
             clist=line.partition('"')

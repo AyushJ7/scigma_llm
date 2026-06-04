@@ -192,6 +192,7 @@ def reset(win=None):
     equations.plug(win)
     win.script='none'
     win.llm_context_start_index=len(win.history)+1
+    win.llm_history=[]
     win.glWindow.set_title("SCIGMA - script: "+win.script+" - equations: "+win.source)
 
 def bye(win=None):
